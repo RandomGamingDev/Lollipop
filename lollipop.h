@@ -8,6 +8,8 @@
 // For programs not only should it shift all addresses so that it can only write to allocate mem
 // But it should also put smart breakpoints for safety reasons among other things
 
+#include <iostream>
+
 #include <cstddef>
 #include <string>
 #include <array>
@@ -52,34 +54,40 @@ namespace Lollipop {
         LOAD // <target> <code>
     };
 
+    template <typename NBit>
     struct InstructionData {
         std::string str;
         size_t numParams;
+        void (*op)(NBit*, NBit*, NBit&);
 
-        InstructionData(std::string str, size_t numParams) {
+        InstructionData(std::string str, size_t numParams, void (*op)(NBit*, NBit*, NBit&)) {
             this->str = str;
             this->numParams = numParams;
+            this->op = op;
         }
     };
 
+    #define INSTRUCTION_OP(instruction) \
+        [](uint64_t* mem, uint64_t* args, uint64_t& i){ instruction; }
+
     // InstructionType to InstructionData
-    const std::array<InstructionData, numInstructions> instructionData = {
-        InstructionData("AND", 2),
-        InstructionData("OR", 2),
-        InstructionData("XOR", 2),
-        InstructionData("NOT", 2),
-        InstructionData("SHIFT", 2),
-        InstructionData("ADD", 2),
-        InstructionData("SUB", 2),
-        InstructionData("MUL", 2),
-        InstructionData("DIV", 2),
-        InstructionData("MOD", 2),
-        InstructionData("LESS", 2),
-        InstructionData("EQU", 2),
-        InstructionData("COPY", 2),
-        InstructionData("GOTO", 1),
-        InstructionData("INPUT", 1),
-        InstructionData("LOAD", 2)
+    const std::array<InstructionData<uint64_t>, numInstructions> instructionData = {
+        InstructionData<uint64_t>("AND", 2, INSTRUCTION_OP(mem[args[0]] = mem[args[0]] & mem[args[1]])),
+        InstructionData<uint64_t>("OR", 2, INSTRUCTION_OP(mem[args[0]] = mem[args[0]] | mem[args[1]])),
+        InstructionData<uint64_t>("XOR", 2, INSTRUCTION_OP(mem[args[0]] = mem[args[0]] ^ mem[args[1]])),
+        InstructionData<uint64_t>("NOT", 2, INSTRUCTION_OP(mem[args[0]] = ~mem[args[0]])),
+        InstructionData<uint64_t>("SHIFT", 2, INSTRUCTION_OP(mem[args[0]] = mem[args[1]] > 0 ? mem[args[0]] >> mem[args[1]] : mem[args[0]] << -mem[args[1]])),
+        InstructionData<uint64_t>("ADD", 2, INSTRUCTION_OP(mem[args[0]] = mem[args[0]] + mem[args[1]])),
+        InstructionData<uint64_t>("SUB", 2, INSTRUCTION_OP(mem[args[0]] = mem[args[0]] - mem[args[1]])),
+        InstructionData<uint64_t>("MUL", 2, INSTRUCTION_OP(mem[args[0]] = mem[args[0]] * mem[args[1]])),
+        InstructionData<uint64_t>("DIV", 2, INSTRUCTION_OP(mem[args[0]] = mem[args[0]] / mem[args[1]])),
+        InstructionData<uint64_t>("MOD", 2, INSTRUCTION_OP(mem[args[0]] = mem[args[0]] % mem[args[1]])),
+        InstructionData<uint64_t>("LESS", 2, INSTRUCTION_OP(mem[args[0]] = mem[args[0]] < mem[args[1]])),
+        InstructionData<uint64_t>("EQU", 2, INSTRUCTION_OP(mem[args[0]] = mem[args[0]] == mem[args[1]])),
+        InstructionData<uint64_t>("COPY", 2, INSTRUCTION_OP(mem[args[1]] = mem[args[0]])),
+        InstructionData<uint64_t>("GOTO", 1, INSTRUCTION_OP(i = mem[args[0]])),
+        InstructionData<uint64_t>("INPUT", 1, INSTRUCTION_OP(i = mem[args[0]])),
+        InstructionData<uint64_t>("LOAD", 2, INSTRUCTION_OP(i = mem[args[0]]))
     };
 
     //#define StrInstructionPair(ins) { instructionData[ins].str, ins }
@@ -121,15 +129,14 @@ namespace Lollipop {
             this->params = params;
         }
 
-        std::array<char, 1 + sizeof(NBit) * maxNumParams> compressed_bytes() {
-            std::array<char, 1 + sizeof(NBit) * maxNumParams> data =
-                std::array<char, 1 + sizeof(NBit) * maxNumParams>();
-            data[0] = (char)type << 4; // 4 bits
-            for (size_t i = 0; i < params.size(); i++)
-                for (size_t j = 0; j < sizeof(NBit); j++) {
-                    data[i] |= (maxNumParams >> 4); // flipped?
-                    data[i + 1] = maxNumParams << 4;
-                }
+        std::array<uint8_t, 1 + sizeof(NBit) * maxNumParams> bytes() {
+            std::array<uint8_t, 1 + sizeof(NBit) * maxNumParams> data =
+                std::array<uint8_t, 1 + sizeof(NBit) * maxNumParams>();
+            
+            data[0] = static_cast<uint8_t>(this->type);
+            // 
+            std::copy(this->params.begin(), this->params.end(), reinterpret_cast<uint64_t*>(&data[1]));
+
             return data;
         }
 
@@ -149,27 +156,58 @@ namespace Lollipop {
     };
 
     template <typename NBit>
-    class Interpreter {
+    class Executor {
     public:
         // The bytecode
         Instruction<NBit>* byteCode;
+        NBit byteCodeSize;
         // The memory
         NBit* memory;
+        NBit memorySize;
         // The current line
         NBit line;
+        // EndReason
+        EndReason endReason;
 
-        Interpreter() {
-
+        Executor(
+            Instruction<NBit>* byteCode,
+            NBit byteCodeSize,
+            NBit* memory,
+            NBit memorySize,
+            NBit line = 1,
+            EndReason endReason = EndReason::Null
+        ) {
+            this->byteCode = byteCode;
+            this->byteCodeSize = byteCodeSize;
+            this->memory = memory;
+            this->memorySize = memorySize;
+            this->line = line;
+            this->endReason = endReason;
         }
 
         // This will run until the program ends, an exception happens, or an input statement is reached
         EndReason run() {
-            return EndReason::Natural;
+            while (this->endReason == EndReason::Null)
+                this->run_tick();
+            return this->endReason;
         }
 
         // This will run a tick of the program
         EndReason run_tick() {
-            return EndReason::Null;
+            Instruction<NBit> instruction = byteCode[line - 1];
+            Lollipop::InstructionData<uint64_t> instructionData = Lollipop::instructionData[instruction.type];
+
+            std::cout << instructionData.str << std::endl;
+            instructionData.op(memory, instruction.params.data(), this->line);
+            std::cout << this->memory[0] << std::endl;
+
+            this->line++;
+            if (this->line > byteCodeSize)
+                this->endReason = EndReason::Natural;
+            else
+                this->endReason = EndReason::Null;
+
+            return this->endReason;
         }
 
         // This is what is used to enter an input
@@ -178,18 +216,33 @@ namespace Lollipop {
         }
 
         // This creates a new instance of the memory and outputs it
-        void mem_dump() {
-
+        NBit* mem_dump() {
+            NBit* to_return = new NBit[sizeof(this->memory) / sizeof(NBit)];
+            std::copy(this->memory, this->memory + sizeof(this->memory), to_return);
+            return to_return;
         }
 
         // This will return the value at an address
-        NBit get_addr() {
-            
+        NBit get_addr(NBit i) {
+            if (i < 0 || i >= sizeof(memory) / sizeof(NBit)) {
+                this->endReason = EndReason::Error;
+                return NULL;
+            }
+            return this->memory[i];
         }
 
         // This will set the value at an address
-        void set_addr() {
+        void set_addr(NBit i, NBit val) {
+            if (i < 0 || i >= sizeof(memory) / sizeof(NBit)) {
+                this->endReason = EndReason::Error;
+                return;
+            }
+            this->memory[i] = val;
+        }
 
+        // Check to make sure goto is safe
+        bool check_goto(NBit i) {
+            return false;
         }
     };
 }

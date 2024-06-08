@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <vector>
 #include <ctype.h>
+#include <cstddef>
 #include <optional>
 
 #include "lollipop.h"
@@ -26,7 +27,7 @@ std::string input(std::string prompt) {
 }
 
 template <typename T>
-std::optional<T> StrToUint(std::string str) {
+std::optional<T> str_to_uint(std::string str) {
     T toReturn = 0;
     T place = 1;
 
@@ -53,7 +54,7 @@ int main(int argc, char* argv[]) {
             argv[1];
 
     // Get the file
-    std::fstream asmFile(toAssemblePath, std::ios::in);
+    std::ifstream asmFile(toAssemblePath, std::ios::in);
     if (!asmFile.is_open())
         end_with_error("Failed to open " << toAssemblePath);
 
@@ -76,13 +77,13 @@ int main(int argc, char* argv[]) {
             break;
 
         // Check whether the indentation was done properly
-        if (line.substr(0, indent.length()) != indent) // 2 spaces
+        if (line.length() < 3 || line.substr(0, indent.length()) != indent) // 2 spaces
             end_with_error("Improper indentation in the header on line " << (lineI + 1));
 
-        const size_t skipInd = indent.length() + 2;
+        const size_t skipInd = indent.length();
         const std::string dataStr = line.substr(skipInd, line.length() - skipInd);
         // Get the value
-        const std::optional<uint64_t> res = StrToUint<uint64_t>(dataStr);
+        const std::optional<uint64_t> res = str_to_uint<uint64_t>(dataStr);
         if (!res.has_value())
             end_with_error("Failed to parse line " << (lineI + 1));
         headerData.push_back(res.value());
@@ -133,7 +134,7 @@ int main(int argc, char* argv[]) {
 
                 // Getting the parameter
                 const std::string paramStr = line.substr(sCursor, eCursor - sCursor);
-                const std::optional<uint64_t> res = StrToUint<uint64_t>(paramStr);
+                const std::optional<uint64_t> res = str_to_uint<uint64_t>(paramStr);
                 if (!res.has_value())
                     end_with_error("There's an invalid parameter on line " << (lineI + 1) << " for parameter " << (i + 1));
                 instruction.params[i] = res.value();
@@ -157,27 +158,27 @@ int main(int argc, char* argv[]) {
     // Initialize the binary file
     std::ofstream byteFile(name, std::ios::out | std::ios::binary);
     if (!byteFile)
-        end_with_error("Failed to open " + name);
+        end_with_error("Failed to open " << name);
 
     // Write all of the binary data
 
     { // Write the header data
         // Write the header's size
         uint64_t headerSize = static_cast<uint64_t>(headerData.size());
-        //byteFile.write(reinterpret_cast<char*>(&headerSize), sizeof(uint64_t));
+        byteFile.write(reinterpret_cast<char*>(&headerSize), sizeof(uint64_t));
         // Write the header data
         byteFile.write(reinterpret_cast<char*>(headerData.data()), headerData.size() * sizeof(uint64_t));
     }
 
     { // Write the bytecode
         for (Lollipop::Instruction<uint64_t>& instruction : instructions) {
-            std::array<char, 1 + sizeof(uint64_t) * Lollipop::maxNumParams> bytes = instruction.compressed_bytes();
-            byteFile.write(bytes.data(), bytes.size() * sizeof(char));
+            std::array<uint8_t, 1 + sizeof(uint64_t) * Lollipop::maxNumParams> bytes = instruction.bytes();
+            byteFile.write(reinterpret_cast<char*>(bytes.data()), bytes.size() * sizeof(uint8_t));
         }
     }
-
+    
     // Close & make sure that everything went right while writing
     byteFile.close();
     if (!byteFile.good())
-        end_with_error("Something went wrong while writing to " + name);
+        end_with_error("Something went wrong while writing to " << name);
 }

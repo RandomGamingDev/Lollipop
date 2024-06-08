@@ -1,4 +1,8 @@
 header {
-    1
+  1
+  3
+  2
 }
-MUL 1 0
+MUL 0 1
+ADD 0 2
+DIV 0 2
