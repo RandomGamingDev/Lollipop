@@ -68,27 +68,32 @@ namespace Lollipop {
     };
 
     #define INSTRUCTION_OP(instruction) \
-        [](uint64_t* mem, uint64_t* args, uint64_t& i){ instruction; }
+        [](uint64_t* mem, uint64_t* args, uint64_t& line){ instruction; }
+
+    // Argument Memory Reference
+    #define AMR(i) mem[args[i]]
 
     // InstructionType to InstructionData
     const std::array<InstructionData<uint64_t>, numInstructions> instructionData = {
-        InstructionData<uint64_t>("AND", 2, INSTRUCTION_OP(mem[args[0]] = mem[args[0]] & mem[args[1]])),
-        InstructionData<uint64_t>("OR", 2, INSTRUCTION_OP(mem[args[0]] = mem[args[0]] | mem[args[1]])),
-        InstructionData<uint64_t>("XOR", 2, INSTRUCTION_OP(mem[args[0]] = mem[args[0]] ^ mem[args[1]])),
-        InstructionData<uint64_t>("NOT", 2, INSTRUCTION_OP(mem[args[0]] = ~mem[args[0]])),
-        InstructionData<uint64_t>("SHIFT", 2, INSTRUCTION_OP(mem[args[0]] = mem[args[1]] > 0 ? mem[args[0]] >> mem[args[1]] : mem[args[0]] << -mem[args[1]])),
-        InstructionData<uint64_t>("ADD", 2, INSTRUCTION_OP(mem[args[0]] = mem[args[0]] + mem[args[1]])),
-        InstructionData<uint64_t>("SUB", 2, INSTRUCTION_OP(mem[args[0]] = mem[args[0]] - mem[args[1]])),
-        InstructionData<uint64_t>("MUL", 2, INSTRUCTION_OP(mem[args[0]] = mem[args[0]] * mem[args[1]])),
-        InstructionData<uint64_t>("DIV", 2, INSTRUCTION_OP(mem[args[0]] = mem[args[0]] / mem[args[1]])),
-        InstructionData<uint64_t>("MOD", 2, INSTRUCTION_OP(mem[args[0]] = mem[args[0]] % mem[args[1]])),
-        InstructionData<uint64_t>("LESS", 2, INSTRUCTION_OP(mem[args[0]] = mem[args[0]] < mem[args[1]])),
-        InstructionData<uint64_t>("EQU", 2, INSTRUCTION_OP(mem[args[0]] = mem[args[0]] == mem[args[1]])),
-        InstructionData<uint64_t>("COPY", 2, INSTRUCTION_OP(mem[args[1]] = mem[args[0]])),
-        InstructionData<uint64_t>("GOTO", 1, INSTRUCTION_OP(i = mem[args[0]])),
-        InstructionData<uint64_t>("INPUT", 1, INSTRUCTION_OP(i = mem[args[0]])),
-        InstructionData<uint64_t>("LOAD", 2, INSTRUCTION_OP(i = mem[args[0]]))
+        InstructionData<uint64_t>("AND", 2, INSTRUCTION_OP(AMR(0) &= AMR(1))),
+        InstructionData<uint64_t>("OR", 2, INSTRUCTION_OP(AMR(0) |= AMR(1))),
+        InstructionData<uint64_t>("XOR", 2, INSTRUCTION_OP(AMR(0) ^= AMR(1))),
+        InstructionData<uint64_t>("NOT", 2, INSTRUCTION_OP(AMR(0) = ~AMR(0))),
+        InstructionData<uint64_t>("SHIFT", 2, INSTRUCTION_OP(AMR(0) = AMR(1) > 0 ? AMR(0) >> AMR(1) : AMR(0) << -AMR(1))),
+        InstructionData<uint64_t>("ADD", 2, INSTRUCTION_OP(AMR(0) += AMR(1))),
+        InstructionData<uint64_t>("SUB", 2, INSTRUCTION_OP(AMR(0) -= AMR(1))),
+        InstructionData<uint64_t>("MUL", 2, INSTRUCTION_OP(AMR(0) *= AMR(1))),
+        InstructionData<uint64_t>("DIV", 2, INSTRUCTION_OP(AMR(0) /= AMR(1))),
+        InstructionData<uint64_t>("MOD", 2, INSTRUCTION_OP(AMR(0) %= AMR(1))),
+        InstructionData<uint64_t>("LESS", 2, INSTRUCTION_OP(AMR(0) = AMR(0) < AMR(1))),
+        InstructionData<uint64_t>("EQU", 2, INSTRUCTION_OP(AMR(0) = AMR(0) == AMR(1))),
+        InstructionData<uint64_t>("COPY", 2, INSTRUCTION_OP(AMR(1) = AMR(0))),
+        InstructionData<uint64_t>("GOTO", 1, INSTRUCTION_OP(line = AMR(0))),
+        InstructionData<uint64_t>("INPUT", 1, INSTRUCTION_OP(line = AMR(0))),
+        InstructionData<uint64_t>("LOAD", 2, INSTRUCTION_OP(line = AMR(0)))
     };
+
+    #undef AMR
 
     //#define StrInstructionPair(ins) { instructionData[ins].str, ins }
     std::pair<std::string, InstructionType> StrInstructionPair(InstructionType ins) {
@@ -197,11 +202,8 @@ namespace Lollipop {
             Instruction<NBit> instruction = byteCode[line - 1];
             Lollipop::InstructionData<uint64_t> instructionData = Lollipop::instructionData[instruction.type];
 
-            std::cout << instructionData.str << std::endl;
             instructionData.op(this->memory, instruction.params.data(), this->line);
             std::cout << this->memory[0] << std::endl;
-            std::cout << this->memory[1] << std::endl;
-            std::cout << this->memory[2] << std::endl;
 
             this->line++;
             if (this->line > byteCodeSize)

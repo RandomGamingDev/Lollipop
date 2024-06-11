@@ -69,8 +69,5 @@ int main(int argc, char* argv[]) {
             byteHeader, byteHeaderSize
         );
 
-    for (int i = 0; i < byteHeaderSize; i++)
-        std::cout << byteHeader[i] << std::endl;
-
     executor.run();
 }
