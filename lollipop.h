@@ -198,8 +198,10 @@ namespace Lollipop {
             Lollipop::InstructionData<uint64_t> instructionData = Lollipop::instructionData[instruction.type];
 
             std::cout << instructionData.str << std::endl;
-            instructionData.op(memory, instruction.params.data(), this->line);
+            instructionData.op(this->memory, instruction.params.data(), this->line);
             std::cout << this->memory[0] << std::endl;
+            std::cout << this->memory[1] << std::endl;
+            std::cout << this->memory[2] << std::endl;
 
             this->line++;
             if (this->line > byteCodeSize)

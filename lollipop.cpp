@@ -38,8 +38,8 @@ int main(int argc, char* argv[]) {
     uint8_t* byteBuffer = byteVector.data();
 
     // Read the header
-    uint64_t* byteHeader = reinterpret_cast<uint64_t*>(&byteBuffer[0]);
-    uint64_t byteHeaderSize = *byteHeader;
+    uint64_t* byteHeader = &reinterpret_cast<uint64_t*>(&byteBuffer[0])[1]; // DEAL
+    uint64_t byteHeaderSize = *reinterpret_cast<uint64_t*>(&byteBuffer[0]);
     uint64_t endOfHeader = (byteHeaderSize + 1) * sizeof(uint64_t);
 
 
@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
         std::array<uint64_t, 2> params = std::array<uint64_t, 2>();
 
         size_t instructionEnd = i + instructionData.numParams * sizeof(uint64_t);
-        //std::copy(&byteBuffer[i], &byteBuffer[instructionEnd], params);
+        std::copy(&byteBuffer[i], &byteBuffer[instructionEnd], reinterpret_cast<uint8_t*>(params.data()));
         i = instructionEnd;
 
         Lollipop::Instruction<uint64_t> instruction = Lollipop::Instruction<uint64_t>(instructionType, params);
@@ -68,6 +68,9 @@ int main(int argc, char* argv[]) {
             instructions.data(), instructions.size(),
             byteHeader, byteHeaderSize
         );
+
+    for (int i = 0; i < byteHeaderSize; i++)
+        std::cout << byteHeader[i] << std::endl;
 
     executor.run();
 }
