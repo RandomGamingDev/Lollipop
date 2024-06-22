@@ -1,15 +1,13 @@
 #ifndef LOLLIPOP_HEADER
 #define LOLLIPOP_HEADER
 
-// If an OS it created make it so that LLVM code is compiled to this
-// Compile GNU softare using the LLVM compiler to compile it
-// Use linux or custom kernel if needed
+// Make it so that LLVM code is compiled to this (maybe?)
 // Write drivers for custom real or virtual components
 // For programs not only should it shift all addresses so that it can only write to allocate mem
-// But it should also put smart breakpoints for safety reasons among other things
 
 #include <iostream>
 
+#include <optional>
 #include <cstddef>
 #include <string>
 #include <array>
@@ -22,6 +20,26 @@ namespace Lollipop {
     // (header_size) (data)
     // Code:
     // (code_size) (code)
+
+    template <typename T>
+    std::optional<T> str_to_uint(std::string str) {
+        T toReturn = 0;
+        T place = 1;
+
+        // The integer will overflow and the 2nd part will detect that
+        for (size_t i = str.length() - 1; i < str.length(); i--) {
+            const char digit = str[i] - 48;
+
+            // Return error if it isn't a number
+            if (digit > 9)
+                return std::nullopt; // change this to optional later
+
+            toReturn += digit * place;
+            place *= 10;
+        }
+
+        return toReturn;
+    }
 
     // Booleans have all bits set to their coressponding boolean
     // Lines starts from 1 and the program ends upon movement to an invalid line unless it's 0, where it'll just cancel
@@ -55,12 +73,30 @@ namespace Lollipop {
     };
 
     template <typename NBit>
+    class Executor;
+
+    uint64_t input() {
+        // Get the input from console
+        std::string input;
+        std::getline(std::cin, input);
+
+        // Get the value
+        const std::optional<uint64_t> op_val = str_to_uint<uint64_t>(input);
+        // If it's invalid take NULL
+        if (!op_val.has_value())
+            return 0;
+
+        // Otherwise continue on with letting the program take in the input
+        return op_val.value();
+    }
+
+    template <typename NBit>
     struct InstructionData {
         std::string str;
         size_t numParams;
-        void (*op)(NBit*, NBit*, NBit&);
+        void (*op)(Executor<uint64_t>*, NBit*, NBit*, NBit&);
 
-        InstructionData(std::string str, size_t numParams, void (*op)(NBit*, NBit*, NBit&)) {
+        InstructionData(std::string str, size_t numParams, void (*op)(Executor<uint64_t>*, NBit*, NBit*, NBit&)) {
             this->str = str;
             this->numParams = numParams;
             this->op = op;
@@ -68,7 +104,7 @@ namespace Lollipop {
     };
 
     #define INSTRUCTION_OP(instruction) \
-        [](uint64_t* mem, uint64_t* args, uint64_t& line){ instruction; }
+        [](Executor<uint64_t>* exec, uint64_t* mem, uint64_t* args, uint64_t& line){ instruction; }
 
     // Argument Memory Reference
     #define AMR(i) mem[args[i]]
@@ -89,8 +125,8 @@ namespace Lollipop {
         InstructionData<uint64_t>("EQU", 2, INSTRUCTION_OP(AMR(0) = AMR(0) == AMR(1))),
         InstructionData<uint64_t>("COPY", 2, INSTRUCTION_OP(AMR(1) = AMR(0))),
         InstructionData<uint64_t>("GOTO", 1, INSTRUCTION_OP(line = AMR(0))),
-        InstructionData<uint64_t>("INPUT", 1, INSTRUCTION_OP(line = AMR(0))),
-        InstructionData<uint64_t>("LOAD", 2, INSTRUCTION_OP(line = AMR(0)))
+        InstructionData<uint64_t>("INPUT", 1, INSTRUCTION_OP(AMR(0) = 3)), // input()
+        InstructionData<uint64_t>("LOAD", 2, INSTRUCTION_OP(AMR(0) = mem[AMR(1)]))
     };
 
     #undef AMR
@@ -139,7 +175,6 @@ namespace Lollipop {
                 std::array<uint8_t, 1 + sizeof(NBit) * maxNumParams>();
             
             data[0] = static_cast<uint8_t>(this->type);
-            // 
             std::copy(this->params.begin(), this->params.end(), reinterpret_cast<uint64_t*>(&data[1]));
 
             return data;
@@ -202,7 +237,7 @@ namespace Lollipop {
             Instruction<NBit> instruction = byteCode[line - 1];
             Lollipop::InstructionData<uint64_t> instructionData = Lollipop::instructionData[instruction.type];
 
-            instructionData.op(this->memory, instruction.params.data(), this->line);
+            instructionData.op(this, this->memory, instruction.params.data(), this->line);
             std::cout << this->memory[0] << std::endl;
 
             this->line++;
@@ -212,11 +247,6 @@ namespace Lollipop {
                 this->endReason = EndReason::Null;
 
             return this->endReason;
-        }
-
-        // This is what is used to enter an input
-        void input() {
-            
         }
 
         // This creates a new instance of the memory and outputs it

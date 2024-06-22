@@ -54,7 +54,7 @@ int main(int argc, char* argv[]) {
         // Copy to std::array containing instructions
         std::array<uint64_t, 2> params = std::array<uint64_t, 2>();
 
-        size_t instructionEnd = i + instructionData.numParams * sizeof(uint64_t);
+        size_t instructionEnd = i + 2 * sizeof(uint64_t);
         std::copy(&byteBuffer[i], &byteBuffer[instructionEnd], reinterpret_cast<uint8_t*>(params.data()));
         i = instructionEnd;
 
