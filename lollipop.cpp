@@ -62,12 +62,11 @@ int main(int argc, char* argv[]) {
         instructions.push_back(instruction);
     }
 
-
     Lollipop::Executor executor =
         Lollipop::Executor<uint64_t>(
             instructions.data(), instructions.size(),
             byteHeader, byteHeaderSize
         );
 
-    executor.run();
+    executor.run([](Lollipop::Executor<uint64_t>* executor){ std::cout << executor->memory[0] << std::endl; });
 }

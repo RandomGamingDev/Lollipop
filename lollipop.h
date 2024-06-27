@@ -103,14 +103,31 @@ namespace Lollipop {
         }
     };
 
-    #define INSTRUCTION_OP(instruction) \
-        [](Executor<uint64_t>* exec, uint64_t* mem, uint64_t* args, uint64_t& line){ instruction; }
+    #define INSTRUCTION_OP(instruction) [](Executor<uint64_t>* exec, uint64_t* mem, uint64_t* args, uint64_t& line){ instruction; }
+    #define INSTRUCTION_DATA(str, numParams, op) InstructionData<uint64_t>(str, numParams, INSTRUCTION_OP(op))
 
     // Argument Memory Reference
     #define AMR(i) mem[args[i]]
 
     // InstructionType to InstructionData
     const std::array<InstructionData<uint64_t>, numInstructions> instructionData = {
+        INSTRUCTION_DATA("AND", 2, AMR(0) &= AMR(1)),
+        INSTRUCTION_DATA("OR", 2, AMR(0) |= AMR(1)),
+        INSTRUCTION_DATA("XOR", 2, AMR(0) ^= AMR(1)),
+        INSTRUCTION_DATA("NOT", 2, AMR(0) = ~AMR(0)),
+        INSTRUCTION_DATA("SHIFT", 2, AMR(0) = AMR(1) > 0 ? AMR(0) >> AMR(1) : AMR(0) << -AMR(1)),
+        INSTRUCTION_DATA("ADD", 2, AMR(0) += AMR(1)),
+        INSTRUCTION_DATA("SUB", 2, AMR(0) -= AMR(1)),
+        INSTRUCTION_DATA("MUL", 2, AMR(0) *= AMR(1)),
+        INSTRUCTION_DATA("DIV", 2, AMR(0) /= AMR(1)),
+        INSTRUCTION_DATA("MOD", 2, AMR(0) %= AMR(1)),
+        INSTRUCTION_DATA("LESS", 2, AMR(0) = AMR(0) < AMR(1)),
+        INSTRUCTION_DATA("EQU", 2, AMR(0) = AMR(0) == AMR(1)),
+        INSTRUCTION_DATA("COPY", 2, AMR(1) = AMR(0)),
+        INSTRUCTION_DATA("GOTO", 1, line = AMR(0)),
+        INSTRUCTION_DATA("INPUT", 1, AMR(0) = input()),
+        INSTRUCTION_DATA("LOAD", 2, AMR(0) = mem[AMR(1)])
+        /*
         InstructionData<uint64_t>("AND", 2, INSTRUCTION_OP(AMR(0) &= AMR(1))),
         InstructionData<uint64_t>("OR", 2, INSTRUCTION_OP(AMR(0) |= AMR(1))),
         InstructionData<uint64_t>("XOR", 2, INSTRUCTION_OP(AMR(0) ^= AMR(1))),
@@ -125,8 +142,9 @@ namespace Lollipop {
         InstructionData<uint64_t>("EQU", 2, INSTRUCTION_OP(AMR(0) = AMR(0) == AMR(1))),
         InstructionData<uint64_t>("COPY", 2, INSTRUCTION_OP(AMR(1) = AMR(0))),
         InstructionData<uint64_t>("GOTO", 1, INSTRUCTION_OP(line = AMR(0))),
-        InstructionData<uint64_t>("INPUT", 1, INSTRUCTION_OP(AMR(0) = 3)), // input()
+        InstructionData<uint64_t>("INPUT", 1, INSTRUCTION_OP(AMR(0) = input())),
         InstructionData<uint64_t>("LOAD", 2, INSTRUCTION_OP(AMR(0) = mem[AMR(1)]))
+        */
     };
 
     #undef AMR
@@ -226,9 +244,12 @@ namespace Lollipop {
         }
 
         // This will run until the program ends, an exception happens, or an input statement is reached
-        EndReason run() {
-            while (this->endReason == EndReason::Null)
+        EndReason run(void (*callback)(Executor<NBit>*) = nullptr) {
+            while (this->endReason == EndReason::Null) {
                 this->run_tick();
+                if (callback != nullptr)
+                    callback(this);
+            }
             return this->endReason;
         }
 
@@ -238,7 +259,6 @@ namespace Lollipop {
             Lollipop::InstructionData<uint64_t> instructionData = Lollipop::instructionData[instruction.type];
 
             instructionData.op(this, this->memory, instruction.params.data(), this->line);
-            std::cout << this->memory[0] << std::endl;
 
             this->line++;
             if (this->line > byteCodeSize)
