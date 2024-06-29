@@ -172,7 +172,7 @@ int main(int argc, char* argv[]) {
 
     { // Write the bytecode
         for (Lollipop::Instruction<uint64_t>& instruction : instructions) {
-            std::array<uint8_t, 1 + sizeof(uint64_t) * Lollipop::maxNumParams> bytes = instruction.bytes();
+            std::array<uint8_t, 1 + sizeof(uint64_t) * Lollipop::MAX_NUM_PARAMS> bytes = instruction.bytes();
             byteFile.write(reinterpret_cast<char*>(bytes.data()), bytes.size() * sizeof(uint8_t));
         }
     }
