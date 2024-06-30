@@ -186,7 +186,11 @@ namespace Lollipop {
             // Reverse effect of 0 being natural end and line increment at end of execution
             line -= 2;
         }),
-        INS("INPUT", 1, marg0 = input()),
+        INS("INPUT", 1, {
+            endReason = EndReason::Input;
+            marg0 = input();
+            endReason = EndReason::Null;
+        }),
         INS("LOAD", 2, marg0 = mem[marg1])
     };
 
@@ -294,10 +298,25 @@ namespace Lollipop {
                 this->endReason = EndReason::Natural;
                 return this->endReason;
             }
-            Instruction<NBit> instruction = byteCode[line];
-            Lollipop::InstructionData<uint64_t> instructionData = Lollipop::instructionData[instruction.type];
 
-            instructionData.op(this->memory, instruction.params, this->line, this->endReason);
+            // Get the instruction's data
+            const Instruction<NBit>& instruction = byteCode[line];
+            const Lollipop::InstructionData<uint64_t>& instructionData = Lollipop::instructionData[instruction.type];
+
+            // Execute the instruction and increment
+            try {
+                instructionData.op(this->memory, instruction.params, this->line, this->endReason);
+            }
+            catch (std::exception& e) { // Don't throw any errors of a type that doesn't inherit from std::exception
+                this->endReason = EndReason::Error;
+                std::cout << e.what() << std::endl;
+            }
+            catch (...) {
+                this->endReason = EndReason::Error;
+                std::cout <<
+                    "An exception of a type not inheriting from std::exception was thrown!" << 
+                    "Please change the thrown exception to inherit from std::exception!" << std::endl;
+            }
             this->line++;
 
             return this->endReason;
