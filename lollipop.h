@@ -40,7 +40,7 @@ namespace Lollipop {
         return toReturn;
     }
 
-    uint64_t input() {
+    uint64_t input_uint64_t() {
         // Flush input buffer
         std::cin.clear();
         std::cin.sync();
@@ -192,7 +192,7 @@ namespace Lollipop {
         }),
         INS("INPUT", 1, {
             endReason = EndReason::Input;
-            marg0 = input();
+            marg0 = input_uint64_t();
             endReason = EndReason::Null;
         }),
         INS("LOAD", 2, marg0 = mem[marg1])
@@ -309,7 +309,7 @@ namespace Lollipop {
 
             // Get the instruction's data
             const Instruction<NBit>& instruction = byteCode[line];
-            const Lollipop::InstructionData<uint64_t>& instructionData = Lollipop::instructionData[instruction.type];
+            const Lollipop::InstructionData<NBit>& instructionData = Lollipop::instructionData[instruction.type];
 
             // Execute the instruction and increment
             try {
