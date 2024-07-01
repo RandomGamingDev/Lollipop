@@ -8,7 +8,7 @@
 #include <cstddef>
 #include <optional>
 
-#include "lollipop.h"
+#include "../lollipop/lollipop.h"
 
 const std::string indent = "  ";
 

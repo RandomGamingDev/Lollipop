@@ -5,7 +5,7 @@
 #include <vector>
 #include <string>
 
-#include "lollipop.h"
+#include "../lollipop/lollipop.h"
 
 std::string input(std::string prompt) {
     std::cout << prompt << std::endl;
