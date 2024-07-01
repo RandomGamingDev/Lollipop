@@ -28,6 +28,13 @@ int main(int argc, char* argv[]) {
             input("Enter the file that you'd like to execute: ") :
             argv[1];
 
+    // Get amount of memory to be allocated in 64 bits
+    const std::string strMemSize = 
+        (argc < 3) ?
+            input("Enter the amount of memory in units of 64 bits that you'd like: ") :
+            argv[2];
+    const uint64_t memSize = Lollipop::str_to_uint<uint64_t>(strMemSize).value();
+
     // Get the file
     std::ifstream byteFile(executablePath, std::ios::in | std::ios::binary);
     if (!byteFile.is_open())
@@ -40,12 +47,15 @@ int main(int argc, char* argv[]) {
     // Read the header
     uint64_t* byteHeader = &reinterpret_cast<uint64_t*>(&byteBuffer[0])[1]; // DEAL
     uint64_t byteHeaderSize = *reinterpret_cast<uint64_t*>(&byteBuffer[0]);
-    uint64_t endOfHeader = (byteHeaderSize + 1) * sizeof(uint64_t);
+    // Check to make sure that the memory size is valid according to the byteHeaderSize
+    if (byteHeaderSize > memSize)
+        end_with_error("The memory size allocated (" << memSize << ") isn't large enough to hold the header of size (" << byteHeaderSize << ")!");
 
+    uint64_t startOfInstructions = (byteHeaderSize + 1) * sizeof(uint64_t);
 
     // Read the instructions
     std::vector<Lollipop::Instruction<uint64_t>> instructions = std::vector<Lollipop::Instruction<uint64_t>>();
-    for (size_t i = endOfHeader; i < byteBufferSize;) {
+    for (size_t i = startOfInstructions; i < byteBufferSize;) {
         // Read the instruction and get its meta data
         Lollipop::InstructionType instructionType = static_cast<Lollipop::InstructionType>(byteBuffer[i]);
         Lollipop::InstructionData instructionData = Lollipop::instructionData[instructionType];
@@ -62,10 +72,15 @@ int main(int argc, char* argv[]) {
         instructions.push_back(instruction);
     }
 
+    uint64_t* memArr = new uint64_t[memSize];
+    // There's a check to make sure that the memory size is valid so don't worry about this
+    std::copy(byteHeader, byteHeader + byteHeaderSize, memArr);
+
     Lollipop::Executor executor =
         Lollipop::Executor<uint64_t>(
             instructions.data(), instructions.size(),
-            Lollipop::Memory(byteHeader, byteHeaderSize)
+            //Lollipop::Memory(byteHeader, byteHeaderSize)
+            Lollipop::Memory(memArr, memSize)
         );
 
     executor.run(

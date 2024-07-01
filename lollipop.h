@@ -112,6 +112,8 @@ namespace Lollipop {
         NBit size;
 
         Memory(NBit* array, NBit size) {
+            static_assert(std::is_unsigned_v<NBit> == true);
+
             this->array = array;
             this->size = size;
         }
@@ -141,6 +143,8 @@ namespace Lollipop {
         void (*op)(Memory<NBit>, std::array<NBit, MAX_NUM_PARAMS>, NBit&, EndReason&);
 
         InstructionData(std::string str, size_t numParams, void (*op)(Memory<NBit>, std::array<NBit, MAX_NUM_PARAMS>, NBit&, EndReason&)) {
+            static_assert(std::is_unsigned_v<NBit> == true);
+
             this->str = str;
             this->numParams = numParams;
             this->op = op;
@@ -232,6 +236,8 @@ namespace Lollipop {
         std::array<NBit, MAX_NUM_PARAMS> params;
 
         Instruction(InstructionType type, std::array<NBit, MAX_NUM_PARAMS> params = std::array<NBit, MAX_NUM_PARAMS>()) {
+            static_assert(std::is_unsigned_v<NBit> == true);
+
             this->type = type;
             this->params = params;
         }
@@ -275,6 +281,8 @@ namespace Lollipop {
             EndReason endReason = EndReason::Null
         ) : memory(memory)
         {
+            static_assert(std::is_unsigned_v<NBit> == true);
+
             this->byteCode = byteCode;
             this->byteCodeSize = byteCodeSize;
             this->line = line;
@@ -306,6 +314,7 @@ namespace Lollipop {
             // Execute the instruction and increment
             try {
                 instructionData.op(this->memory, instruction.params, this->line, this->endReason);
+                this->line++;
             }
             catch (std::exception& e) { // Don't throw any errors of a type that doesn't inherit from std::exception
                 this->endReason = EndReason::Error;
@@ -317,7 +326,6 @@ namespace Lollipop {
                     "An exception of a type not inheriting from std::exception was thrown!" << 
                     "Please change the thrown exception to inherit from std::exception!" << std::endl;
             }
-            this->line++;
 
             return this->endReason;
         }
