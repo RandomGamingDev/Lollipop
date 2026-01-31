@@ -129,8 +129,8 @@ namespace Lollipop {
 
         // Clone the memory
         NBit* clone() {
-            NBit* new_array = new NBit[sizeof(this->array) / sizeof(NBit)];
-            std::copy(this->array, this->array + sizeof(this->array), new_array);
+            NBit* new_array = new NBit[this->size];
+            std::copy(this->array, this->array + this->size, new_array);
 
             return Memory(new_array, this->size);
         }
