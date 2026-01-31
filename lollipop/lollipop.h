@@ -159,7 +159,7 @@ namespace Lollipop {
     #define marg1 mem[arg1]
 
     // InstructionType to InstructionData
-    const std::array<InstructionData<uint64_t>, NUM_INSTRUCTIONS> instructionData = {
+    inline const std::array<InstructionData<uint64_t>, NUM_INSTRUCTIONS> instructionData = {
         INS("AND", 2, marg0 &= marg1),
         INS("OR", 2, marg0 |= marg1),
         INS("XOR", 2, marg0 ^= marg1),
@@ -206,7 +206,7 @@ namespace Lollipop {
     #define SIP(ins) { instructionData[ins].str, ins }
 
     // std::string to InstructionType
-    const std::unordered_map<std::string, InstructionType> strToIns = {
+    inline const std::unordered_map<std::string, InstructionType> strToIns = {
         SIP(InstructionType::AND),
         SIP(InstructionType::OR),
         SIP(InstructionType::XOR),
